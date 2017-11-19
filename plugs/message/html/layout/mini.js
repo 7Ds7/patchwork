@@ -23,7 +23,7 @@ exports.create = function (api) {
 
   function layout (msg, {layout, previousId, priority, miniContent, content, includeReferences, includeForks = true}) {
     if (!(layout === 'mini')) return
-
+    console.log(msg)
     var classList = ['Message -mini']
     var replyInfo = null
 
@@ -88,7 +88,8 @@ exports.create = function (api) {
           api.message.html.meta(msg),
           additionalMeta,
           h('strong', api.message.html.timestamp(msg))
-        ])
+        ]),
+        h('div.message-menu-wrapper.js-message-menu-wrapper')
       ])
     }
   }

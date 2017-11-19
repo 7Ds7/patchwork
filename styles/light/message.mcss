@@ -132,6 +132,44 @@ Message {
       }
     }
 
+    div.message-menu-wrapper {
+      position: relative;
+      padding: 0 0 0 10px;
+      display: flex;
+      flex-direction: column-reverse;
+      align-items: flex-end;
+      justify-content: flex-end;
+
+      a.message-menu-trigger {
+        font-size: 75%;
+      }
+
+      div.message-menu {
+        display: none;
+        position: absolute;
+        top: 20px;
+        width: 170px;
+        background: white;
+        border: 1px solid #EEE;
+        font-size: 12px;
+
+        a {
+          display: block;
+          padding: 5px 10px;
+          color: #2b2b2b;
+          :hover {
+            background-color: #286bc3;
+            color: white;
+            text-decoration: none;
+          }
+        }
+      }
+
+      div.show {
+        display: block;
+      }
+    }
+
     div.meta {
       display: flex;
       flex-direction: column-reverse;

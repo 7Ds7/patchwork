@@ -144,6 +144,42 @@ Message {
       }
     }
 
+    div.message-menu-wrapper {
+      position: relative;
+      padding: 0 0 0 10px;
+      display: flex;
+      flex-direction: column-reverse;
+      align-items: flex-end;
+      justify-content: flex-end;
+
+      a.message-menu-trigger {
+        font-size: 75%;
+      }
+
+      div.message-menu {
+        display: none;
+        position: absolute;
+        top: 20px;
+        width: 170px;
+        background: #434141;
+        border: 1px solid #2d2c2c;
+        font-size: 12px;
+
+        a {
+          display: block;
+          padding: 5px 10px;
+          color: #aaa;
+          :hover {
+            background-color: #2d2c2c;
+          }
+        }
+      }
+
+      div.show {
+        display: block;
+      }
+    }
+
     div.meta {
       display: flex;
       flex-direction: column-reverse;

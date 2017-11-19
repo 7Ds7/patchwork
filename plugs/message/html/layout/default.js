@@ -1,4 +1,4 @@
-const { h, computed, Value, when } = require('mutant')
+const { h, computed, Value, when, send } = require('mutant')
 var nest = require('depnest')
 var ref = require('ssb-ref')
 var ExpanderHook = require('../../../../lib/expander-hook')
@@ -89,6 +89,7 @@ exports.create = function (api) {
       if (priority >= 2) {
         additionalMeta.push(h('span.flag -new', {title: i18n('New Message')}))
       }
+      //debugger
       return h('header', [
         h('div.main', [
           h('a.avatar', {href: `${msg.value.author}`}, [
@@ -107,7 +108,8 @@ exports.create = function (api) {
         h('div.meta', [
           api.message.html.meta(msg),
           additionalMeta
-        ])
+        ]),
+        h('div.message-menu-wrapper.js-message-menu-wrapper')
       ])
     }
   }
