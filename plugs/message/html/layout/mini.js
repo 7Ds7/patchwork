@@ -23,7 +23,6 @@ exports.create = function (api) {
 
   function layout (msg, {layout, previousId, priority, miniContent, content, includeReferences, includeForks = true}) {
     if (!(layout === 'mini')) return
-    console.log(msg)
     var classList = ['Message -mini']
     var replyInfo = null
 
