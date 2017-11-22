@@ -19,7 +19,7 @@ exports.create = (api) => {
 
   function constructMenu (elm) {
     var menu_wrapper = elm.querySelector('.js-message-menu-wrapper')
-    var menu_trigger = h('a.message-menu-trigger', {href: '#', 'ev-click': send(showMenu, elm) }, ['⋮'])
+    var menu_trigger = h('a.message-menu-trigger', {href: '#', 'ev-click': send(showMenu, elm) }, ['⋮⋮'])
     var menu = h('div.message-menu', {'ev-mouseleave': function() {hideMenu(elm)} }, [
         h('a', {
           href:'#',
@@ -97,7 +97,11 @@ exports.create = (api) => {
   }
 
   function showMenu(elm) {
-    var cmenu = elm.querySelector('.message-menu');
+    var cmenu = elm.querySelector('.message-menu')
+    var all_menus = document.querySelectorAll('.message-menu.show')
+    all_menus.forEach( (e,i) => {
+      e.classList.remove('show')
+    })
     if ( !cmenu.classList.contains('show') ) {
       cmenu.classList.add('show');
     }

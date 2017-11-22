@@ -120,7 +120,16 @@ exports.create = function (api) {
     ])
 
     var prepend = h('header', {className: 'ProfileHeader'}, [
-      h('div.image', api.about.html.image(id)),
+      h('div.image', [
+        api.about.html.image(id),
+        h('label', [
+            h('input', {
+              type: 'checkbox',
+              className: 'js-user-posts-checkbox',
+              'ev-change': userFeed
+            }), 'Show only user posts'
+          ])
+        ]),
       h('div.main', [
         h('div.title', [
           h('h1', [name]),
@@ -196,13 +205,17 @@ exports.create = function (api) {
       ])
     ])
 
+    function userFeed() {
+      container.reload()
+    }
+
     var feedView = api.feed.html.rollup(api.feed.pull.profile(id), {
       prepend,
       compactFilter: (msg) => msg.value.author !== id, // show root context messages smaller
       displayFilter: (msg) => msg.value.author === id,
       rootFilter: (msg) => !contact.youBlock() && !api.message.sync.root(msg),
-      bumpFilter: (msg) => msg.value.author === id
-    })
+      bumpFilter: (msg) => msg.value.author === id  && ( container.querySelector('.js-user-posts-checkbox').checked === false  ) || ( container.querySelector('.js-user-posts-checkbox').checked === true && msg.value.content.type === 'post' && msg.value.content.root === undefined)
+    });
 
     var container = h('div', {className: 'SplitView'}, [
       h('div.main', [
@@ -223,10 +236,12 @@ exports.create = function (api) {
     ])
 
     // refresh feed (to hide all posts) when blocked
+
     contact.youBlock(feedView.reload)
 
     container.pendingUpdates = feedView.pendingUpdates
     container.reload = feedView.reload
+    window.container = container
     return container
   })
 
