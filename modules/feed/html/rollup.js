@@ -193,10 +193,11 @@ exports.create = function (api) {
       })
 
       var replies = item.replies.filter(isReply).sort(byAssertedTime)
+      var highlightedReplies = replies.filter(isHighlighted)
       var replyElements = replies.filter(displayFilter).slice(-3).map((msg) => {
         var result = api.message.html.render(msg, {
           previousId,
-          compact: compactFilter(msg),
+          compact: compactFilter(msg, item),
           priority: highlightItems.has(msg.key) ? 2 : 0
         })
         previousId = msg.key
@@ -225,6 +226,9 @@ exports.create = function (api) {
         ])
       }
 
+      // if there are new messages, view full thread goes to the top of those, otherwise to very first reply
+      var anchorReply = highlightedReplies.length >= 3 ? highlightedReplies[0] : replies[0]
+
       return h('FeedEvent -post', {
         attributes: {
           'data-root-id': item.key
@@ -233,10 +237,14 @@ exports.create = function (api) {
         meta,
         renderedMessage,
         when(replies.length > replyElements.length || partial,
-          h('a.full', {href: item.key, anchor: replies[0] && replies[0].key}, [i18n('View full thread') + ' (', replies.length, ')'])
+          h('a.full', {href: item.key, anchor: anchorReply && anchorReply.key}, [i18n('View full thread') + ' (', replies.length, ')'])
         ),
         h('div.replies', replyElements)
       ])
+    }
+
+    function isHighlighted (msg) {
+      return highlightItems.has(msg.key)
     }
   })
 
