@@ -34,6 +34,9 @@ exports.create = function (api) {
     var needsExpand = Value(false)
     var expanded = Value(false)
 
+    // new message previews shouldn't contract
+    if (!msg.key) expanded.set(true)
+
     if (msg.value.content.root) {
       classList.push('-reply')
       var branch = msg.value.content.branch
@@ -52,6 +55,10 @@ exports.create = function (api) {
 
     if (priority === 2) {
       classList.push('-new')
+    }
+
+    if (priority === 1) {
+      classList.push('-unread')
     }
 
     return h('div', {
@@ -86,8 +93,10 @@ exports.create = function (api) {
 
     function messageHeader (msg, {replyInfo, priority}) {
       var additionalMeta = []
-      if (priority >= 2) {
+      if (priority === 2) {
         additionalMeta.push(h('span.flag -new', {title: i18n('New Message')}))
+      } else if (priority === 1) {
+        additionalMeta.push(h('span.flag -unread', {title: i18n('Unread Message')}))
       }
       return h('header', [
         h('div.main', [

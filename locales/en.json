@@ -110,7 +110,7 @@
 	"Theme": "Theme",
 	"Language": "Language",
 	"Filters": "Filters",
-	" Hide following messages": " Hide following messages",
+	"Hide following messages": "Hide following messages",
 	"Cannot display message": "Cannot display message",
 	"Search Results:": "Search Results:",
 	"Search completed.": "Search completed.",
@@ -173,7 +173,7 @@
 	"An error occured while publishing your message.": "An error occured while publishing your message.",
 	"Missing message": "Missing message",
 	" via ": " via ",
-	"Cannot load thead": "Cannot load thead",
+	"Cannot load thread": "Cannot load thread",
 	"The author of this message could be outside of your follow range or they may be blocked.": "The author of this message could be outside of your follow range or they may be blocked.",
 	"You follow %s people that follow this person.": {
 		"one": "You follow someone that follows this person.",
@@ -184,5 +184,11 @@
 	"See less": "See less",
 	"See more": "See more",
 	"(missing message)": "(missing message)",
-	"assigned a description to ": "assigned a description to "
+	"assigned a description to ": "assigned a description to ",
+	"Unread Message": "Unread Message",
+	"Font Size": "Font Size",
+	"Public Feed Options": "Public Feed Options",
+	"Only include posts from subscribed channels": "Only include posts from subscribed channels",
+	"Default": "Default",
+	"Force Disconnect": "Force Disconnect"
 }

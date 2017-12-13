@@ -1,13 +1,14 @@
 var nest = require('depnest')
 var extend = require('xtend')
 var pull = require('pull-stream')
-var { h, send, when, computed, map } = require('mutant')
+var { h, send, when, computed, map, onceTrue } = require('mutant')
 
 exports.needs = nest({
   sbot: {
     obs: {
       connectedPeers: 'first',
-      localPeers: 'first'
+      localPeers: 'first',
+      connection: 'first'
     }
   },
   'sbot.pull.stream': 'first',
@@ -72,7 +73,10 @@ exports.create = function (api) {
         // if an lt has been specified that is not a marker, assume stream is finished
         return pull.empty()
       } else {
-        return api.sbot.pull.stream(sbot => sbot.patchwork.roots(extend(opts, { ids: [id] })))
+        return api.sbot.pull.stream(sbot => sbot.patchwork.roots(extend(opts, {
+          ids: [id],
+          onlySubscribedChannels: filters() && filters().onlySubscribed
+        })))
       }
     }
 
@@ -89,19 +93,15 @@ exports.create = function (api) {
           if (type === 'vote') return false
 
           var author = msg.value.author
-          var channel = api.channel.sync.normalize(msg.value.content.channel)
-          var tagged = checkTag(msg.value.content.mentions)
-          var isSubscribed = channel ? subscribedChannels().has(channel) : false
-          return isSubscribed || id === author || following().includes(author) || tagged
+          return matchesSubscribedChannel(msg) || id === author || following().includes(author)
         }
       },
       rootFilter: function (msg) {
-        var filtered = filters() && filters().following && getType(msg) === 'contact'
         // skip messages that are directly replaced by the previous message
         // e.g. follow / unfollow in quick succession
         // THIS IS A TOTAL HACK!!! SHOULD BE REPLACED WITH A PROPER ROLLUP!
         var isOutdated = isReplacementMessage(msg, lastMessage)
-        if (!filtered && !isOutdated) {
+        if (checkFeedFilter(msg) && !isOutdated) {
           lastMessage = msg
           return true
         }
@@ -134,6 +134,20 @@ exports.create = function (api) {
     }
 
     return result
+
+    function checkFeedFilter (root) {
+      if (filters()) {
+        if (filters().following && getType(root) === 'contact') return false
+      }
+      return true
+    }
+
+    function matchesSubscribedChannel (msg) {
+      var channel = api.channel.sync.normalize(msg.value.content.channel)
+      var tagged = checkTag(msg.value.content.mentions)
+      var isSubscribed = channel ? subscribedChannels().has(channel) : false
+      return isSubscribed || tagged
+    }
 
     function checkTag (mentions) {
       if (Array.isArray(mentions)) {
@@ -226,6 +240,9 @@ exports.create = function (api) {
               ]),
               h('div.progress', [
                 api.progress.html.peer(id)
+              ]),
+              h('div.controls', [
+                h('a.disconnect', {href: '#disconnect', 'ev-click': send(disconnect, id), title: i18n('Force Disconnect')}, ['x'])
               ])
             ])
           })
@@ -248,11 +265,21 @@ exports.create = function (api) {
         subscribed: false
       })
     }
+
+    function disconnect (id) {
+      onceTrue(api.sbot.obs.connection, (sbot) => {
+        sbot.patchwork.disconnect(id)
+      })
+    }
   }
 }
 
 function getType (msg) {
   return msg && msg.value && msg.value.content && msg.value.content.type
+}
+
+function hasChannel (msg) {
+  return getType(msg) !== 'channel' && msg && msg.value && msg.value.content && !!msg.value.content.channel
 }
 
 function arrayEq (a, b) {
