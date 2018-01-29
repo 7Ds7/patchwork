@@ -22,8 +22,10 @@ exports.needs = nest({
   'message.sync.root': 'first',
   'progress.html.peer': 'first',
 
+  'feed.html.followWarning': 'first',
   'feed.html.rollup': 'first',
   'profile.obs.recentlyUpdated': 'first',
+  'profile.obs.contact': 'first',
   'contact.obs.following': 'first',
   'contact.obs.blocking': 'first',
   'channel.obs': {
@@ -57,9 +59,11 @@ exports.create = function (api) {
     var connectedPeers = api.sbot.obs.connectedPeers()
     var localPeers = api.sbot.obs.localPeers()
     var connectedPubs = computed([connectedPeers, localPeers], (c, l) => c.filter(x => !l.includes(x)))
+    var contact = api.profile.obs.contact(id)
 
     var prepend = [
-      api.message.html.compose({ meta: { type: 'post' }, placeholder: i18n('Write a public message') })
+      api.message.html.compose({ meta: { type: 'post' }, placeholder: i18n('Write a public message') }),
+      noVisibleNewPostsWarning()
     ]
 
     var lastMessage = null
@@ -141,8 +145,15 @@ exports.create = function (api) {
     return result
 
     function checkFeedFilter (root) {
-      if (filters()) {
-        if (filters().following && getType(root) === 'contact') return false
+      const filterObj = filters()
+      if (filterObj) {
+        const rootType = getType(root)
+        if (
+          (filterObj.following && rootType === 'contact') ||
+          (filterObj.subscriptions && rootType === 'channel')
+        ) {
+          return false
+        }
       }
       return true
     }
@@ -259,6 +270,16 @@ exports.create = function (api) {
       ]
     }
 
+    function noVisibleNewPostsWarning () {
+      var explanation = i18n('You may not be able to see new content until you follow some users or pubs.')
+
+      var shownWhen = computed([loading, contact.isNotFollowingAnybody],
+           (isLoading, isNotFollowingAnybody) => !isLoading && isNotFollowingAnybody
+        )
+
+      return api.feed.html.followWarning(shownWhen, explanation)
+    }
+
     function subscribe (id) {
       api.message.async.publish({
         type: 'channel',
@@ -285,10 +306,6 @@ exports.create = function (api) {
 
 function getType (msg) {
   return msg && msg.value && msg.value.content && msg.value.content.type
-}
-
-function hasChannel (msg) {
-  return getType(msg) !== 'channel' && msg && msg.value && msg.value.content && !!msg.value.content.channel
 }
 
 function arrayEq (a, b) {

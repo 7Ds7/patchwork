@@ -323,7 +323,7 @@ exports.create = function (api) {
             style: {
               'font-weight': 'normal'
             }
-          }, [i18n('What whould you like to call '), h('strong', [currentName]), '?']),
+          }, [i18n('What would you like to call '), h('strong', [currentName]), '?']),
           input
         ]),
         footer: [

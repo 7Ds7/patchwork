@@ -6,11 +6,14 @@ exports.needs = nest({
   'message.html.compose': 'first',
   'channel.sync.normalize': 'first',
   'feed.html.rollup': 'first',
+  'feed.html.followWarning': 'first',
   'feed.pull.channel': 'first',
   'sbot.pull.log': 'first',
   'message.async.publish': 'first',
   'keys.sync.id': 'first',
-  'intl.sync.i18n': 'first'
+  'intl.sync.i18n': 'first',
+  'settings.obs.get': 'first',
+  'profile.obs.contact': 'first'
 })
 
 exports.gives = nest('page.html.render')
@@ -20,8 +23,12 @@ exports.create = function (api) {
   return nest('page.html.render', function channel (path) {
     if (path[0] !== '#') return
 
+    var id = api.keys.sync.id()
+
     var channel = api.channel.sync.normalize(path.substr(1))
-    var subscribedChannels = api.channel.obs.subscribed(api.keys.sync.id())
+    var subscribedChannels = api.channel.obs.subscribed(id)
+
+    var contact = api.profile.obs.contact(id)
 
     var prepend = [
       h('PageHeading', [
@@ -43,14 +50,34 @@ exports.create = function (api) {
       api.message.html.compose({
         meta: {type: 'post', channel},
         placeholder: i18n('Write a message in this channel')
-      })
+      }),
+      noVisibleNewPostsWarning()
     ]
 
-    return api.feed.html.rollup(api.feed.pull.channel(channel), {
-      prepend,
-      displayFilter: mentionFilter,
-      bumpFilter: mentionFilter
-    })
+    const filters = api.settings.obs.get('filters')
+    const channelView = api.feed.html.rollup(
+      api.feed.pull.channel(channel), {
+        prepend,
+        rootFilter: checkFeedFilter,
+        displayFilter: mentionFilter,
+        bumpFilter: mentionFilter
+      })
+
+    // call reload whenever filters changes
+    filters(channelView.reload)
+
+    return channelView
+
+    function checkFeedFilter (msg) {
+      const filterObj = filters() && filters().channelView
+      if (filterObj) {
+        const msgType = msg && msg.value && msg.value.content &&
+                        msg.value.content.type
+        // filter out channel subscription messages
+        if (filterObj.subscriptions && msgType === 'channel') { return false }
+      }
+      return true
+    }
 
     function mentionFilter (msg) {
       // filter out likes
@@ -69,6 +96,11 @@ exports.create = function (api) {
       if (typeof link === 'string' && link.startsWith('#')) {
         return `#${api.channel.sync.normalize(link.slice(1))}`
       }
+    }
+
+    function noVisibleNewPostsWarning () {
+      var warning = i18n('You may not be able to see new channel content until you follow some users or pubs.')
+      return api.feed.html.followWarning(contact.isNotFollowingAnybody, warning)
     }
   })
 
