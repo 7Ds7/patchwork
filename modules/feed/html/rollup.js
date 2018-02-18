@@ -117,11 +117,24 @@ exports.create = function (api) {
             unreadIds.add(msg.key)
           }
 
-          if (updates() === 0 && msg.value.author === yourId && container.scrollTop < 20) {
+          if (updates() === 0 && msg.value.author === yourId && container.scrollTop < 500) {
             refresh()
-          } else {
-            updates.set(newSinceRefresh.size)
+          } else if (msg.value.author === yourId && content()) {
+            // dynamically insert this post into the feed! (manually so that it doesn't get slow with mutant)
+            var existingContainer = content().querySelector(`[data-root-id="${msg.value.content.root}"]`)
+            if (existingContainer) {
+              var replies = existingContainer.querySelector('div.replies')
+              var lastReply = existingContainer.querySelector('div.replies > .Message:last-child')
+              var previousId = lastReply ? lastReply.getAttribute('data-id') : existingContainer.getAttribute('data-root-id')
+              replies.appendChild(api.message.html.render(msg, {
+                previousId,
+                compact: false,
+                priority: 2
+              }))
+            }
           }
+
+          updates.set(newSinceRefresh.size)
         })
       )
     })
@@ -239,10 +252,10 @@ exports.create = function (api) {
       if (!renderedMessage) return h('div')
 
       if (rootBumpType === 'matches-channel') {
-        var channels = []
-        if (item.value.content.channel) channels.push(item.value.content.channel)
-        if (item.filterResult && Array.isArray(item.filterResult.matchingTags)) {
-          item.filterResult.matchingTags.forEach(x => channels.push(x))
+        var channels = new Set()
+        if (item.filterResult) {
+          if (item.filterResult.matchesChannel) channels.add(item.value.content.channel)
+          if (Array.isArray(item.filterResult.matchingTags)) item.filterResult.matchingTags.forEach(x => channels.add(x))
         }
         meta = h('div.meta', [
           many(channels, api.channel.html.link, i18n), ' ', i18n('mentioned in your network')

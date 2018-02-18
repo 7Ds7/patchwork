@@ -78,8 +78,7 @@ exports.create = function (api) {
         return pull.empty()
       } else {
         return api.sbot.pull.stream(sbot => sbot.patchwork.roots(extend(opts, {
-          ids: [id],
-          onlySubscribedChannels: filters() && filters().onlySubscribed
+          ids: [id]
         })))
       }
     }
@@ -150,7 +149,8 @@ exports.create = function (api) {
         const rootType = getType(root)
         if (
           (filterObj.following && rootType === 'contact') ||
-          (filterObj.subscriptions && rootType === 'channel')
+          (filterObj.subscriptions && rootType === 'channel') ||
+          (filterObj.onlySubscribed && rootType === 'post' && !matchesSubscribedChannel(root))
         ) {
           return false
         }
@@ -202,15 +202,7 @@ exports.create = function (api) {
                   when(subscribed, '-subscribed')
                 ]
               }, [
-                h('span.name', '#' + channel),
-                when(subscribed,
-                  h('a.-unsubscribe', {
-                    'ev-click': send(unsubscribe, channel)
-                  }, i18n('Unsubscribe')),
-                  h('a.-subscribe', {
-                    'ev-click': send(subscribe, channel)
-                  }, i18n('Subscribe'))
-                )
+                h('span.name', '#' + channel)
               ])
             }, {maxTime: 5}),
             h('a.channel -more', {href: '/channels'}, i18n('More Channels...'))
@@ -262,7 +254,7 @@ exports.create = function (api) {
                 api.progress.html.peer(id)
               ]),
               h('div.controls', [
-                h('a.disconnect', {href: '#disconnect', 'ev-click': send(disconnect, id), title: i18n('Force Disconnect')}, ['x'])
+                h('a.disconnect', {href: '#', 'ev-click': send(disconnect, id), title: i18n('Force Disconnect')}, ['x'])
               ])
             ])
           })

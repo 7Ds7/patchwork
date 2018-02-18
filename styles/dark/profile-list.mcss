@@ -13,6 +13,17 @@ ProfileList {
     background-repeat: no-repeat
     background-position: right
 
+    -more {
+      padding-top: 10px
+      padding-bottom: 10px
+      
+      div.main {
+        div.name {
+          font-weight: normal
+        }
+      }
+    }
+
     -following {
       background-image: svg(following)
     }
@@ -96,6 +107,12 @@ ProfileList {
           background-color: #F77
         }
       }
+    }
+
+    div.buttons {
+      display: flex;
+      align-items: center;
+      padding-right: 10px;
     }
 
     :hover {
