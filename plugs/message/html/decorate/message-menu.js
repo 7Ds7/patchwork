@@ -100,10 +100,13 @@ exports.create = (api) => {
     var cmenu = elm.querySelector('.message-menu')
     var all_menus = document.querySelectorAll('.message-menu.show')
     all_menus.forEach( (e,i) => {
-      e.classList.remove('show')
+      if (e !== cmenu)
+        e.classList.remove('show')
     })
     if ( !cmenu.classList.contains('show') ) {
       cmenu.classList.add('show');
+    } else {
+      cmenu.classList.remove('show');
     }
   }
 
