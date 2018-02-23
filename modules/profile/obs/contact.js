@@ -51,6 +51,10 @@ exports.create = function (api) {
       return sync && (!following || !following.length)
     })
 
+    var hasNoFollowers = computed([followers, followers.sync], (followers, sync) => {
+      return sync && (!followers || !followers.length)
+    })
+
     return {
       followers,
       following,
@@ -65,6 +69,7 @@ exports.create = function (api) {
       incomingViaCount: count(incomingVia),
       hasOutgoing,
       isNotFollowingAnybody,
+      hasNoFollowers,
       noOutgoing: not(hasOutgoing, isYou),
       hasIncoming,
       noIncoming: not(hasIncoming, isYou),
