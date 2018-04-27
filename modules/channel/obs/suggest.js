@@ -4,6 +4,8 @@ var {Struct, map, computed, watch} = require('mutant')
 exports.needs = nest({
   'channel.obs.recent': 'first',
   'channel.obs.subscribed': 'first',
+  'channel.obs.mostActive': 'first',
+  'intl.sync.startsWith': 'first',
   'keys.sync.id': 'first'
 })
 
@@ -12,6 +14,7 @@ exports.gives = nest('channel.async.suggest')
 exports.create = function (api) {
   var suggestions = null
   var subscribed = null
+  var matches = api.intl.sync.startsWith
 
   return nest('channel.async.suggest', function () {
     loadSuggestions()
@@ -20,7 +23,7 @@ exports.create = function (api) {
         return suggestions().slice(0, 200)
       } else {
         return suggestions().filter((item) => {
-          return item.title.toLowerCase().startsWith(word.toLowerCase())
+          return matches(item.title, word)
         })
       }
     }
@@ -30,34 +33,45 @@ exports.create = function (api) {
     if (!suggestions) {
       var id = api.keys.sync.id()
       subscribed = api.channel.obs.subscribed(id)
-      var recentlyUpdated = api.channel.obs.recent()
-      var contacts = computed([subscribed, recentlyUpdated], function (a, b) {
+      var mostActive = api.channel.obs.mostActive()
+      var channels = computed([subscribed, mostActive], function (a, b) {
         var result = Array.from(a)
         b.forEach((item, i) => {
-          if (!result.includes(item)) {
+          if (!result.includes(item[0])) {
             result.push(item)
           }
         })
         return result
       })
 
-      suggestions = map(contacts, suggestion, {idle: true})
+      suggestions = map(channels, suggestion, {idle: true})
       watch(suggestions)
     }
   }
 
   function suggestion (id) {
-    return Struct({
-      title: id,
-      id: `#${id}`,
-      subtitle: computed([id, subscribed], subscribedCaption),
-      value: `#${id}`
-    })
+    if (Array.isArray(id)) {
+      return Struct({
+        title: id[0],
+        id: `#${id[0]}`,
+        subtitle: computed([id[0], subscribed, `(${id[1]})`], subscribedCaption),
+        value: `#${id[0]}`
+      })
+    } else {
+      return Struct({
+        title: id,
+        id: `#${id}`,
+        subtitle: computed([id, subscribed], subscribedCaption),
+        value: `#${id}`
+      })
+    }
   }
 }
 
-function subscribedCaption (id, subscribed) {
+function subscribedCaption (id, subscribed, fallback) {
   if (subscribed.has(id)) {
     return 'subscribed'
+  } else {
+    return fallback || ''
   }
 }

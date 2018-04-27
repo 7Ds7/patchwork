@@ -23,6 +23,7 @@ exports.needs = nest({
   'progress.html.peer': 'first',
 
   'feed.html.followWarning': 'first',
+  'feed.html.followerWarning': 'first',
   'feed.html.rollup': 'first',
   'profile.obs.recentlyUpdated': 'first',
   'profile.obs.contact': 'first',
@@ -63,7 +64,8 @@ exports.create = function (api) {
 
     var prepend = [
       api.message.html.compose({ meta: { type: 'post' }, placeholder: i18n('Write a public message') }),
-      noVisibleNewPostsWarning()
+      noVisibleNewPostsWarning(),
+      noFollowersWarning()
     ]
 
     var lastMessage = null
@@ -78,8 +80,7 @@ exports.create = function (api) {
         return pull.empty()
       } else {
         return api.sbot.pull.stream(sbot => sbot.patchwork.roots(extend(opts, {
-          ids: [id],
-          onlySubscribedChannels: filters() && filters().onlySubscribed
+          ids: [id]
         })))
       }
     }
@@ -99,17 +100,33 @@ exports.create = function (api) {
           var author = msg.value.author
 
           if (id === author || following().includes(author)) {
-            return true
+            if (isAttendee(msg)) {
+              return 'attending'
+            } else {
+              return true
+            }
           } else if (matchesSubscribedChannel(msg)) {
             return 'matches-channel'
           }
         }
       },
       rootFilter: function (msg) {
+        if (msg.value && msg.value.content && msg.value.content.type === 'contact') {
+          // don't show unfollows in the main feed, but do show follows and blocks
+          // we still show unfollows on a person's profile though
+          if (msg.value.content.following === false && !msg.value.content.blocking) return false
+        }
+
+        if (msg.value && msg.value.content && msg.value.content.type === 'channel') {
+          // don't show channel unsubscribes in the main feed, but we still show on their profile
+          if (msg.value.content.subscribed === false) return false
+        }
+
         // skip messages that are directly replaced by the previous message
         // e.g. follow / unfollow in quick succession
         // THIS IS A TOTAL HACK!!! SHOULD BE REPLACED WITH A PROPER ROLLUP!
         var isOutdated = isReplacementMessage(msg, lastMessage)
+
         if (checkFeedFilter(msg) && !isOutdated) {
           lastMessage = msg
           return true
@@ -150,7 +167,8 @@ exports.create = function (api) {
         const rootType = getType(root)
         if (
           (filterObj.following && rootType === 'contact') ||
-          (filterObj.subscriptions && rootType === 'channel')
+          (filterObj.subscriptions && rootType === 'channel') ||
+          (filterObj.onlySubscribed && rootType === 'post' && !matchesSubscribedChannel(root))
         ) {
           return false
         }
@@ -202,15 +220,7 @@ exports.create = function (api) {
                   when(subscribed, '-subscribed')
                 ]
               }, [
-                h('span.name', '#' + channel),
-                when(subscribed,
-                  h('a.-unsubscribe', {
-                    'ev-click': send(unsubscribe, channel)
-                  }, i18n('Unsubscribe')),
-                  h('a.-subscribe', {
-                    'ev-click': send(subscribe, channel)
-                  }, i18n('Subscribe'))
-                )
+                h('span.name', '#' + channel)
               ])
             }, {maxTime: 5}),
             h('a.channel -more', {href: '/channels'}, i18n('More Channels...'))
@@ -262,7 +272,7 @@ exports.create = function (api) {
                 api.progress.html.peer(id)
               ]),
               h('div.controls', [
-                h('a.disconnect', {href: '#disconnect', 'ev-click': send(disconnect, id), title: i18n('Force Disconnect')}, ['x'])
+                h('a.disconnect', {href: '#', 'ev-click': send(disconnect, id), title: i18n('Force Disconnect')}, ['x'])
               ])
             ])
           })
@@ -271,29 +281,30 @@ exports.create = function (api) {
     }
 
     function noVisibleNewPostsWarning () {
-      var explanation = i18n('You may not be able to see new content until you follow some users or pubs.')
+      const explanation = i18n('You may not be able to see new content until you follow some users or pubs.')
 
-      var shownWhen = computed([loading, contact.isNotFollowingAnybody],
-           (isLoading, isNotFollowingAnybody) => !isLoading && isNotFollowingAnybody
-        )
+      const shownWhen = computed([loading, contact.isNotFollowingAnybody],
+        (isLoading, isNotFollowingAnybody) => !isLoading && isNotFollowingAnybody
+      )
 
       return api.feed.html.followWarning(shownWhen, explanation)
     }
 
-    function subscribe (id) {
-      api.message.async.publish({
-        type: 'channel',
-        channel: id,
-        subscribed: true
-      })
-    }
+    function noFollowersWarning () {
+      const explanation = i18n(
+        'Nobody will be able to see your posts until you have a follower. The easiest way to get a follower is to use a pub invite as the pub will follow you back. If you have already redeemed a pub invite and you see it has not followed you back on your profile, try another pub.'
+      )
 
-    function unsubscribe (id) {
-      api.message.async.publish({
-        type: 'channel',
-        channel: id,
-        subscribed: false
-      })
+      // We only show this if the user has followed someone as the first warning ('You are not following anyone')
+      // should be sufficient to get the user to join a pub. However, pubs have been buggy and not followed back on occassion.
+      // Additionally, someone onboarded on a local network might follow someone on the network, but not be followed back by
+      // them, so we begin to show this warning if the user has followed someone, but has no followers.
+      const shownWhen = computed([loading, contact.hasNoFollowers, contact.isNotFollowingAnybody],
+        (isLoading, hasNoFollowers, isNotFollowingAnybody) =>
+          !isLoading && (hasNoFollowers && !isNotFollowingAnybody)
+      )
+
+      return api.feed.html.followerWarning(shownWhen, explanation)
     }
 
     function disconnect (id) {
@@ -322,4 +333,9 @@ function isReplacementMessage (msgA, msgB) {
       return msgA.value.author === msgB.value.author && msgA.value.content.contact === msgB.value.content.contact
     }
   }
+}
+
+function isAttendee (msg) {
+  var content = msg.value && msg.value.content
+  return (content && content.type === 'about' && content.attendee && !content.attendee.remove)
 }

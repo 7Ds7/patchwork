@@ -9,6 +9,7 @@ var mentions = require('ssb-mentions')
 var extend = require('xtend')
 var addSuggest = require('suggest-box')
 var emoji = require('emojilib')
+var ref = require('ssb-ref')
 
 exports.needs = nest({
   'blob.html.input': 'first',
@@ -24,7 +25,7 @@ exports.gives = nest('message.html.compose')
 
 exports.create = function (api) {
   const i18n = api.intl.sync.i18n
-  return nest('message.html.compose', function ({shrink = true, isPrivate, meta, hooks, prepublish, placeholder = 'Write a message'}, cb) {
+  return nest('message.html.compose', function ({shrink = true, isPrivate, participants, meta, hooks, prepublish, placeholder = 'Write a message'}, cb) {
     var files = []
     var filesById = {}
     var focused = Value(false)
@@ -77,9 +78,11 @@ exports.create = function (api) {
       }
 
       files.push(file)
-      filesById[file.link] = file
 
-      var embed = file.type.indexOf('image/') === 0 ? '!' : ''
+      var parsed = ref.parseLink(file.link)
+      filesById[parsed.link] = file
+
+      var embed = isEmbeddable(file.type) ? '!' : ''
       var pos = textArea.selectionStart
       var before = textArea.value.slice(0, pos)
       var after = textArea.value.slice(pos)
@@ -88,8 +91,12 @@ exports.create = function (api) {
       if (before && !before.endsWith(spacer)) before += spacer
       if (!after.startsWith(spacer)) after = spacer + after
 
-      textArea.value = `${before}${embed}[${file.name}](${file.link})${after}`
+      var embedPrefix = getEmbedPrefix(file.type)
+
+      textArea.value = `${before}${embed}[${embedPrefix}${file.name}](${file.link})${after}`
       console.log('added:', file)
+    }, {
+      private: isPrivate
     })
 
     fileInput.onclick = function () {
@@ -134,7 +141,7 @@ exports.create = function (api) {
 
     addSuggest(textArea, (inputText, cb) => {
       if (inputText[0] === '@') {
-        cb(null, getProfileSuggestions(inputText.slice(1)))
+        cb(null, getProfileSuggestions(inputText.slice(1), resolve(participants)))
       } else if (inputText[0] === '#') {
         cb(null, getChannelSuggestions(inputText.slice(1)))
       } else if (inputText[0] === ':') {
@@ -217,4 +224,16 @@ exports.create = function (api) {
 function showDialog (opts) {
   var electron = require('electron')
   electron.remote.dialog.showMessageBox(electron.remote.getCurrentWindow(), opts)
+}
+
+function isEmbeddable (type) {
+  return type.startsWith('image/') || type.startsWith('audio/') || type.startsWith('video/')
+}
+
+function getEmbedPrefix (type) {
+  if (typeof type === 'string') {
+    if (type.startsWith('audio/')) return 'audio:'
+    if (type.startsWith('video/')) return 'video:'
+  }
+  return ''
 }

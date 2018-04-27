@@ -1,4 +1,4 @@
-var {h, when, map, computed} = require('mutant')
+var {h, map, computed, Value, lookup} = require('mutant')
 var nest = require('depnest')
 var catchLinks = require('../../lib/catch-links')
 
@@ -6,6 +6,7 @@ exports.needs = nest({
   'sheet.display': 'first',
   'keys.sync.id': 'first',
   'contact.obs.following': 'first',
+  'contact.html.followToggle': 'first',
   'profile.obs.rank': 'first',
   'about.html.image': 'first',
   'about.obs.name': 'first',
@@ -19,13 +20,44 @@ exports.create = function (api) {
   const i18n = api.intl.sync.i18n
   return nest('sheet.profiles', function (ids, title) {
     api.sheet.display(close => {
+      var currentFilter = Value()
+      var nameLookup = lookup(ids, (id) => {
+        return [id, api.about.obs.name(id)]
+      })
+      var filteredIds = computed([ids, nameLookup, currentFilter], (ids, nameLookup, filter) => {
+        if (filter) {
+          var result = []
+          for (var k in nameLookup) {
+            if ((nameLookup[k] && nameLookup[k].toLowerCase().includes(filter.toLowerCase())) || k === filter) {
+              result.push(k)
+            }
+          }
+          return result
+        } else {
+          return ids
+        }
+      })
       var content = h('div', {
         style: { padding: '20px' }
       }, [
         h('h2', {
           style: { 'font-weight': 'normal' }
-        }, [title]),
-        renderContactBlock(ids)
+        }, [
+          title,
+          h('input', {
+            type: 'search',
+            placeholder: 'filter names',
+            'ev-input': function (ev) {
+              currentFilter.set(ev.target.value)
+            },
+            hooks: [FocusHook()],
+            style: {
+              'float': 'right',
+              'font-size': '100%'
+            }
+          })
+        ]),
+        renderContactBlock(filteredIds)
       ])
 
       catchLinks(content, (href, external, anchor) => {
@@ -47,28 +79,35 @@ exports.create = function (api) {
   })
 
   function renderContactBlock (profiles) {
-    var yourId = api.keys.sync.id()
-    var yourFollows = api.contact.obs.following(yourId)
     profiles = api.profile.obs.rank(profiles)
     return [
       h('div', {
         classList: 'ProfileList'
       }, [
         map(profiles, (id) => {
-          var following = computed(yourFollows, f => f.includes(id))
           return h('a.profile', {
             href: id,
-            classList: [
-              when(following, '-following')
-            ]
+            title: id
           }, [
             h('div.avatar', [api.about.html.image(id)]),
             h('div.main', [
               h('div.name', [ api.about.obs.name(id) ])
+            ]),
+            h('div.buttons', [
+              api.contact.html.followToggle(id, {block: false})
             ])
           ])
-        }, { idle: true })
+        }, { idle: true, maxTime: 2 })
       ])
     ]
+  }
+}
+
+function FocusHook () {
+  return function (element) {
+    setTimeout(() => {
+      element.focus()
+      element.select()
+    }, 5)
   }
 }

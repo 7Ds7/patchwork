@@ -31,6 +31,8 @@ exports.create = function (api) {
       return yourFollowing.includes(id)
     })
 
+    var yourFriends = computed([yourFollowers, yourFollowing], inAllSets)
+
     var blockingFriends = computed([yourFollowers, yourFollowing, blockers], inAllSets)
     var mutualFriends = computed([yourFollowers, yourFollowing, followers, following], inAllSets)
     var outgoingVia = computed([yourFollowers, following], inAllSets)
@@ -45,8 +47,12 @@ exports.create = function (api) {
 
     var isYou = computed([yourId, id], (a, b) => a === b)
 
-    var isNotFollowingAnybody = computed(following, followingList => {
-      return !followingList || !followingList.length
+    var isNotFollowingAnybody = computed([following, following.sync], (following, sync) => {
+      return sync && (!following || !following.length)
+    })
+
+    var hasNoFollowers = computed([followers, followers.sync], (followers, sync) => {
+      return sync && (!followers || !followers.length)
     })
 
     return {
@@ -63,12 +69,14 @@ exports.create = function (api) {
       incomingViaCount: count(incomingVia),
       hasOutgoing,
       isNotFollowingAnybody,
+      hasNoFollowers,
       noOutgoing: not(hasOutgoing, isYou),
       hasIncoming,
       noIncoming: not(hasIncoming, isYou),
       yourId,
       yourFollowing,
       yourFollowers,
+      yourFriends,
       youFollow,
       youBlock,
       isYou,

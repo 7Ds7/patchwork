@@ -27,12 +27,13 @@ exports.create = function (api) {
 
     var result = Proxy(loader)
     var anchor = Value()
+    var participants = Proxy([])
 
     var meta = Struct({
       type: 'post',
       root: Proxy(id),
       branch: Proxy(id),
-      reply: Value(undefined),
+      reply: Proxy(undefined),
       channel: Value(undefined),
       recps: Value(undefined)
     })
@@ -41,6 +42,7 @@ exports.create = function (api) {
       meta,
       isPrivate: when(meta.recps, true),
       shrink: false,
+      participants,
       hooks: [
         AnchorHook('reply', anchor, (el) => el.focus())
       ],
@@ -67,7 +69,6 @@ exports.create = function (api) {
       // what happens in private stays in private!
       meta.recps.set(value.content.recps)
 
-      var author = value.author
       var root = api.message.sync.root({key: id, value}) || id
       var isReply = id !== root
       var thread = api.feed.obs.thread(id, {branch: isReply})
@@ -76,10 +77,28 @@ exports.create = function (api) {
       meta.root.set(root || thread.rootId)
 
       // track message author for resolving missing messages and reply mentions
-      meta.reply.set({[id]: author})
+      meta.reply.set(computed(thread.messages, messages => {
+        var result = {}
+        var first = messages[0]
+        var last = messages[messages.length - 1]
+
+        if (first && first.value) {
+          result[messages[0].key] = messages[0].value.author
+        }
+
+        if (last && last !== first && last.value) {
+          result[last.key] = last.value.author
+        }
+
+        return result
+      }))
 
       // if root thread, reply to last post
       meta.branch.set(isReply ? thread.branchId : thread.lastId)
+
+      participants.set(computed(thread.messages, messages => {
+        return messages.map(msg => msg && msg.value && msg.value.author)
+      }))
 
       var container = h('Thread', [
         h('div.messages', [
@@ -98,9 +117,6 @@ exports.create = function (api) {
                 })
               ])
             })
-          }, {
-            maxTime: 5,
-            idle: true
           })
         ]),
         compose

@@ -4,15 +4,16 @@ var TextNodeSearcher = require('text-node-searcher')
 var whitespace = /\s+/
 var pullAbortable = require('pull-abortable')
 var Scroller = require('../../../../lib/scroller')
-var nextStepper = require('../../../../lib/next-stepper')
 var nest = require('depnest')
 var Proxy = require('mutant/proxy')
+var ref = require('ssb-ref')
 
 exports.needs = nest({
   'sbot.pull.stream': 'first',
   'keys.sync.id': 'first',
   'message.html.render': 'first',
-  'intl.sync.i18n': 'first'
+  'intl.sync.i18n': 'first',
+  'sbot.pull.backlinks': 'first'
 })
 
 exports.gives = nest('page.html.render')
@@ -22,8 +23,7 @@ exports.create = function (api) {
   return nest('page.html.render', function channel (path) {
     if (path[0] !== '?') return
 
-    var queryStr = path.substr(1).trim()
-    var query = queryStr.split(whitespace)
+    var query = path.substr(1).trim()
     var done = Value(false)
     var loading = Proxy(true)
     var count = Value(0)
@@ -31,7 +31,7 @@ exports.create = function (api) {
     var aborter = null
 
     const searchHeader = h('div', {className: 'PageHeading'}, [
-      h('h1', [h('strong', i18n('Search Results:')), ' ', query.join(' ')])
+      h('h1', [h('strong', i18n('Search Results:')), ' ', query])
     ])
 
     var updateLoader = h('a Notifier -loader', { href: '#', 'ev-click': refresh }, [
@@ -59,7 +59,7 @@ exports.create = function (api) {
     var realtimeAborter = pullAbortable()
 
     pull(
-      api.sbot.pull.stream(sbot => sbot.patchwork.linearSearch({old: false, query})),
+      getStream(query, true),
       realtimeAborter,
       pull.drain(msg => {
         updates.set(updates() + 1)
@@ -103,11 +103,7 @@ exports.create = function (api) {
       })
 
       pull(
-        api.sbot.pull.stream(sbot => nextStepper(getStream, {
-          reverse: true,
-          limit: 5,
-          query
-        })),
+        getStream(query, false),
         pull.through(() => count.set(count() + 1)),
         aborter,
         pull.filter(msg => msg.value),
@@ -115,25 +111,33 @@ exports.create = function (api) {
       )
 
       loading.set(computed([done, scroller.queue], (done, queue) => {
-        return !done && queue < 5
+        return !done
       }))
-    }
-
-    function getStream (opts) {
-      if (opts.lt != null && !opts.lt.marker) {
-        // if an lt has been specified that is not a marker, assume stream is finished
-        return pull.empty()
-      } else {
-        return api.sbot.pull.stream(sbot => sbot.patchwork.linearSearch(opts))
-      }
     }
 
     function renderMsg (msg) {
       var el = h('FeedEvent', api.message.html.render(msg))
-      highlight(el, createOrRegExp(query))
+      highlight(el, createOrRegExp(query.split(whitespace)))
       return el
     }
   })
+
+  function getStream (query, realtime = false) {
+    if (ref.isLink(query) || query.startsWith('#')) {
+      return api.sbot.pull.backlinks({
+        query: [ {$filter: { dest: query }} ],
+        reverse: true,
+        old: !realtime,
+        index: 'DTA' // use asserted timestamps
+      })
+    } else {
+      if (realtime) {
+        return api.sbot.pull.stream(sbot => sbot.patchwork.linearSearch({old: false, query: query.split(whitespace)}))
+      } else {
+        return api.sbot.pull.stream(sbot => sbot.search.query({query}))
+      }
+    }
+  }
 }
 
 function createOrRegExp (ary) {
