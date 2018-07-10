@@ -230,7 +230,7 @@ exports.create = function (api) {
       compactFilter: (msg) => msg.value.author !== id, // show root context messages smaller
       displayFilter: (msg) => msg.value.author === id,
       rootFilter: (msg) => !contact.youBlock() && !api.message.sync.root(msg),
-      bumpFilter: (msg) => msg.value.author === id,
+      bumpFilter: (msg) => msg.value.author === id && ( container.querySelector('.js-user-posts-checkbox').checked === false  ) || ( container.querySelector('.js-user-posts-checkbox').checked === true && msg.value.content.type === 'post' && msg.value.content.root === undefined),
       ungroupFilter: (msg) => msg.value.author !== id
     })
 
