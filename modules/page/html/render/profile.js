@@ -1,6 +1,6 @@
 var nest = require('depnest')
 var ref = require('ssb-ref')
-var {h, when, computed, map, send, dictToCollection, resolve} = require('mutant')
+var {h, when, computed, map, send, dictToCollection, resolve, onceTrue} = require('mutant')
 
 exports.needs = nest({
   'about.obs': {
@@ -19,6 +19,7 @@ exports.needs = nest({
   'feed.html.rollup': 'first',
   'feed.pull.profile': 'first',
   'sbot.async.publish': 'first',
+  'sbot.obs.connection': 'first',
   'keys.sync.id': 'first',
   'sheet.display': 'first',
   'profile.sheet.edit': 'first',
@@ -42,6 +43,20 @@ exports.create = function (api) {
     var description = api.about.obs.description(id)
     var contact = api.profile.obs.contact(id)
     var recent = api.profile.obs.recentlyUpdated()
+
+    onceTrue(api.sbot.obs.connection, sbot => {
+      // request a once off replicate of this feed
+      // this is so we can break through the "fog of war", and discover profiles by visiting their keys
+      // ... that is, if any pubs we know have their data!
+      sbot.replicate.request(id)
+    })
+
+    // HACK: if requesting this feed has suddenly downloaded a bunch of posts, then refresh view immediately
+    setTimeout(() => {
+      if (feedView.pendingUpdates() > 0) {
+        feedView.reload()
+      }
+    }, 1000)
 
     var friends = computed([contact.following, contact.followers], (following, followers) => {
       return Array.from(following).filter(follow => followers.includes(follow))
@@ -215,8 +230,9 @@ exports.create = function (api) {
       compactFilter: (msg) => msg.value.author !== id, // show root context messages smaller
       displayFilter: (msg) => msg.value.author === id,
       rootFilter: (msg) => !contact.youBlock() && !api.message.sync.root(msg),
-      bumpFilter: (msg) => msg.value.author === id  && ( container.querySelector('.js-user-posts-checkbox').checked === false  ) || ( container.querySelector('.js-user-posts-checkbox').checked === true && msg.value.content.type === 'post' && msg.value.content.root === undefined)
-    });
+      bumpFilter: (msg) => msg.value.author === id,
+      ungroupFilter: (msg) => msg.value.author !== id
+    })
 
     var container = h('div', {className: 'SplitView'}, [
       h('div.main', [
@@ -367,6 +383,11 @@ exports.create = function (api) {
               'font-weight': 'normal'
             }
           }, [i18n('What would you like to call '), h('strong', [currentName]), '?']),
+          h('h3', {
+            style: {
+              'font-weight': 'normal'
+            }
+          }, [i18n('Names you assign here will be publicly visible to others.')]),
           input
         ]),
         footer: [

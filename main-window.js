@@ -73,6 +73,9 @@ module.exports = function (config) {
     electron.remote.app.setBadgeCount(count)
   })
 
+  electron.ipcRenderer.on('goForward', views.goForward)
+  electron.ipcRenderer.on('goBack', views.goBack)
+
   document.head.appendChild(
     h('style', {
       innerHTML: computed(api.settings.obs.get('patchwork.theme', 'light'), themeName => {
@@ -147,7 +150,6 @@ module.exports = function (config) {
       api.app.navigate(href)
     }
   })
-
   return [container, previewElement]
 
   // scoped
@@ -203,10 +205,10 @@ module.exports = function (config) {
               }
             }
           }))
-          menu.popup(electron.remote.getCurrentWindow(), {
+          menu.popup({
+            window: electron.remote.getCurrentWindow(),
             x: Math.round(rects.left * factor),
-            y: Math.round(rects.bottom * factor) + 4,
-            async: true
+            y: Math.round(rects.bottom * factor) + 4
           })
         })
       }

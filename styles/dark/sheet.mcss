@@ -15,6 +15,19 @@ Sheet {
   flex-direction: column
   z-index: 50
 
+  -private {
+    footer {
+      border-color: #5b56b3
+      background-color: #372a56
+    }
+  }
+
+  -public {
+    footer {
+      background-color: #4a3232
+    }
+  }
+
   section {
     overflow-y: auto
     flex: 1
@@ -28,6 +41,11 @@ Sheet {
     padding: 10px;
     position: relative
     border-top: 1px solid #2d2c2c
+    align-items: center
+
+    img {
+      max-height: 24px;
+    }
 
     div.info {
       flex: 1

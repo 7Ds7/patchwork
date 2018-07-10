@@ -45,7 +45,29 @@ electron.app.on('ready', () => {
   setupContext('ssb', {
     server: !(process.argv.includes('-g') || process.argv.includes('--use-global-ssb'))
   }, () => {
+    var browserWindow = openMainWindow()
     var menu = defaultMenu(electron.app, electron.shell)
+
+    menu.splice(4, 0, {
+      label: 'History',
+      submenu: [
+        {
+          label: 'Back',
+          accelerator: 'CmdOrCtrl+[',
+          click: () => {
+            browserWindow.webContents.send('goBack')
+          }
+        },
+        {
+          label: 'Forward',
+          accelerator: 'CmdOrCtrl+]',
+          click: () => {
+            browserWindow.webContents.send('goForward')
+          }
+        }
+      ]
+    })
+
     var view = menu.find(x => x.label === 'View')
     view.submenu = [
       { role: 'reload' },
@@ -74,8 +96,8 @@ electron.app.on('ready', () => {
         { role: 'front' }
       ]
     }
+
     Menu.setApplicationMenu(Menu.buildFromTemplate(menu))
-    openMainWindow()
   })
 
   electron.app.on('activate', function (e) {
@@ -90,7 +112,7 @@ electron.app.on('ready', () => {
 
   electron.ipcMain.on('open-background-devtools', function (ev, config) {
     if (windows.background) {
-      windows.background.webContents.openDevTools({detach: true})
+      windows.background.webContents.openDevTools({mode: 'detach'})
     }
   })
 })
@@ -107,12 +129,12 @@ function openMainWindow () {
       y: windowState.y,
       width: windowState.width,
       height: windowState.height,
-      titleBarStyle: 'hidden-inset',
+      titleBarStyle: 'hiddenInset',
       autoHideMenuBar: true,
       title: 'Patchwork',
       show: true,
       backgroundColor: '#EEE',
-      icon: './assets/icon.png'
+      icon: Path.join(__dirname, 'assets/icon.png')
     })
     windowState.manage(windows.main)
     windows.main.setSheetOffset(40)
@@ -127,6 +149,7 @@ function openMainWindow () {
       if (process.platform !== 'darwin') electron.app.quit()
     })
   }
+  return windows.main
 }
 
 function setupContext (appName, opts, cb) {
