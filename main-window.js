@@ -46,9 +46,9 @@ module.exports = function (config) {
     'intl.sync.i18n': 'first'
   }))
 
-  setupContextMenuAndSpellCheck(api.config.sync.load(), navigate)
 
   const i18n = api.intl.sync.i18n
+  setupContextMenuAndSpellCheck(api.config.sync.load(), {navigate, get: api.sbot.async.get})
 
   var id = api.keys.sync.id()
   var latestUpdate = LatestUpdate()
@@ -114,6 +114,7 @@ module.exports = function (config) {
         dropTab(i18n('More'), [
           getSubscribedChannelMenu,
           [i18n('Gatherings'), '/gatherings'],
+          [i18n('Tags'), `/tags/all/${encodeURIComponent(id)}`],
           [i18n('Extended Network'), '/all'],
           {separator: true},
           [i18n('Settings'), '/settings']
@@ -232,7 +233,12 @@ module.exports = function (config) {
   function getExternalHandler (href, cb) {
     var link = ref.parseLink(href)
     if (link && ref.isMsg(link.link)) {
-      api.sbot.async.get(link.link, function (err, value) {
+      var params = { id: link.link }
+      if (link.query && link.query.unbox) {
+        params.private = true
+        params.unbox = link.query.unbox
+      }
+      api.sbot.async.get(params, function (err, value) {
         if (err) return cb(err)
         cb(null, api.app.sync.externalHandler({key: link.link, value, query: link.query}))
       })
